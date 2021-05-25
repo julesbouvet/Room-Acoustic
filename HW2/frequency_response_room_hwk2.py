@@ -73,7 +73,7 @@ def get_df_eigenmodes(L1, L2, L3, nb_modes):
     return df_eigenmodes
 
 
-def get_pressure__(fmin, fmax, fstep, nb_eigenmodes, L, x, y, reverb):
+def get_pressure__(fmin, fmax, fstep, nb_eigenmodes, L, x, y, dump):
     """
     Compute the pressure value according to formula (3.84)
     """
@@ -121,7 +121,7 @@ def get_pressure__(fmin, fmax, fstep, nb_eigenmodes, L, x, y, reverb):
 
             wn_n = wn[n]
 
-            denum = wn_n**2 + 2j*reverb*wn_n - w**2
+            denum = wn_n**2 + 2j*dump*wn_n - w**2
 
             sum_n += prod[n]/denum
 
@@ -153,7 +153,7 @@ if __name__ == '__main__':
     T60 = 2
 
 
-    p, f = get_pressure__(fmin = 0, fmax = 512, fstep = 1, nb_eigenmodes = 1000, L = L, x = x, y = y, reverb = T60)
+    p, f = get_pressure__(fmin = 0, fmax = 512, fstep = 1, nb_eigenmodes = 1000, L = L, x = x, y = y, dump = 6.91/T60)
    
     # convert the pressure in dB
     p_dB = 20*np.log10(np.abs(p))
