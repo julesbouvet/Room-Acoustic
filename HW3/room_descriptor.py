@@ -140,7 +140,30 @@ plot(sc, T, T_10, T_20, T_30)
 EDT = 6*find_nearest(sc, -10)/Fs
 print('\n \n EDT = ', EDT)
 
+###################################################
+#                                                 #
+#                  D50 and C80                    #
+#                                                 #
+###################################################
 
+
+def D_50_calculation(signal, fs):
+    sq_signal = signal**2
+    k_50 = int(0.05*fs)
+    D_50 = np.sum(sq_signal[:k_50])/ np.sum(sq_signal)
+    return D_50
+
+def C_80_calculation(signal, fs):
+    sq_signal = signal**2
+    k_80 = int(0.08*fs)
+    C_80 = 10*np.log10(np.sum(sq_signal[:k_80])/ np.sum(sq_signal[k_80:-1]))
+    return C_80
+
+D_50 = D_50_calculation(x, Fs)
+C_80 = C_80_calculation(x, Fs)
+
+print('\n \n D_50 = ', D_50)
+print('\n \n C_80 = ', C_80)
 
 time_end = time.time()
 print('\n Time (in s): ', time_end-time_start)
