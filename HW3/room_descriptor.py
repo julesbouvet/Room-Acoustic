@@ -1,24 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import librosa
-import time
-
-from numpy.core.defchararray import find
-
-time_start = time.time()
-
-###########################
-#     Read the signal     #
-###########################
-
-path = 'HW3/wav_files/test.wav'
-x, Fs = librosa.load(path, sr=None)
+from scipy.signal import butter, sosfilt
 
 ###########################
 #     Plot the signal     #
 ###########################
 
-def print_plot_play(x, Fs, text=''):
+def print_plot_play(x, Fs, text='', plot=True):
     """1. Prints information about an audio singal, 2. plots the waveform, and 3. Creates player
     
     Notebook: C1/B_PythonAudio.ipynb
@@ -28,18 +16,16 @@ def print_plot_play(x, Fs, text=''):
         Fs: Sampling rate of x    
         text: Text to print
     """
-    print('\n \n %s Fs = %d, x.shape = %s, x.dtype = %s \n' % (text, Fs, x.shape, x.dtype))
-    plt.figure(figsize=(8, 2))
-    plt.plot(x, color='gray')
-    plt.xlim([0, x.shape[0]])
-    plt.xlabel('Time (samples)')
-    plt.ylabel('Amplitude')
-    plt.tight_layout()
-    plt.show()
+    if plot == True:
+        print('\n \n %s Fs = %d, x.shape = %s, x.dtype = %s \n' % (text, Fs, x.shape, x.dtype))
+        plt.figure(figsize=(8, 2))
+        plt.plot(x, color='gray')
+        plt.xlim([0, x.shape[0]])
+        plt.xlabel('Time (samples)')
+        plt.ylabel('Amplitude')
+        plt.tight_layout()
+        plt.show()
     
-# print_plot_play(x=x, Fs=Fs, text='WAV file: ')
-
-
 ###################################################
 #                                                 #
 #        Computing the Schroeder Curve (SC)       #
@@ -79,12 +65,10 @@ def SC(signal, fs):
 
     return T, sc
 
-T, sc = SC(x, Fs)
-
 
 ###################################################
 #                                                 #
-#       Computing T_10, T_20, T_30 and T_160      #
+#            Computing T_10, T_20, T_30           #
 #                                                 #
 ###################################################
 
@@ -117,19 +101,30 @@ def reverb_time(sc, fs, T_X):
     print(T_X, " = ", t)
     return t
 
-T_10 = reverb_time(sc, Fs, 'T_10')
-T_20 = reverb_time(sc, Fs, 'T_20')
-T_30 = reverb_time(sc, Fs, 'T_30')
+def plot(sc, T, T_10, T_20, T_30, plot):
+    if plot ==True:
+        plt.plot(T, sc)
+        plt.axvline(T_10, c='lightcoral')
+        plt.axvline(T_20, c='indianred')
+        plt.axvline(T_30, c='darkred')
+        plt.show()
 
-def plot(sc, T, T_10, T_20, T_30):
-    plt.plot(T, sc)
-    plt.axvline(T_10)
-    plt.axvline(T_20)
-    plt.axvline(T_30)
-    plt.show()
+###################################################
+#                                                 #
+#               Computing T_160 * ts              #
+#                                                 #
+###################################################
 
-plot(sc, T, T_10, T_20, T_30)
+def TS(signal, T):
+    sq_signal = signal**2
+    ts = np.sum(T*sq_signal)/np.sum(sq_signal)
+    return ts
 
+def T_160_ts(sc, T, signal):
+    SC_16 = sc[find_nearest(T, 0.16)]
+    T_160 = -60*0.16/SC_16
+    ts = TS(signal, T)
+    return T_160*ts
 
 ###################################################
 #                                                 #
@@ -137,8 +132,8 @@ plot(sc, T, T_10, T_20, T_30)
 #                                                 #
 ###################################################
 
-EDT = 6*find_nearest(sc, -10)/Fs
-print('\n \n EDT = ', EDT)
+def EDT(sc, fs):
+    return 6*find_nearest(sc, -10)/fs
 
 ###################################################
 #                                                 #
@@ -159,11 +154,38 @@ def C_80_calculation(signal, fs):
     C_80 = 10*np.log10(np.sum(sq_signal[:k_80])/ np.sum(sq_signal[k_80:-1]))
     return C_80
 
-D_50 = D_50_calculation(x, Fs)
-C_80 = C_80_calculation(x, Fs)
+###################################################
+#                                                 #
+#             Octave Band Filtering               #
+#                                                 #
+###################################################
 
-print('\n \n D_50 = ', D_50)
-print('\n \n C_80 = ', C_80)
+def octave_filter(center_freq, order, signal, fs):
+    band = [center_freq/np.sqrt(2), center_freq*np.sqrt(2)]
+    sos = butter(order, band, btype='bandpass', output='sos', fs=fs)
+    filtered_signal = sosfilt(sos, signal)
+    return filtered_signal
 
-time_end = time.time()
-print('\n Time (in s): ', time_end-time_start)
+###################################################
+#                                                 #
+#               Bass Ration (BR)                  #
+#                                                 #
+###################################################
+
+def BR(x, Fs):
+    signal_125 = octave_filter(125, 5, x, Fs)
+    signal_250 = octave_filter(250, 5, x, Fs)
+    signal_500 = octave_filter(500, 5, x, Fs)
+    signal_1000 = octave_filter(1000, 5, x, Fs)
+
+    sc_125 = SC(signal_125, Fs)
+    sc_250 = SC(signal_250, Fs)
+    sc_500 = SC(signal_500, Fs)
+    sc_1000 = SC(signal_1000, Fs)
+
+    T_60_125 = compute_reverb_time(sc_125, (1, -60, 0), Fs)
+    T_60_250 = compute_reverb_time(sc_250, (1, -60, 0), Fs)
+    T_60_500 = compute_reverb_time(sc_500, (1, -60, 0), Fs)
+    T_60_1000 = compute_reverb_time(sc_1000, (1, -60, 0), Fs)
+
+    return T_60_125 + T_60_250 /(T_60_500 + T_60_1000)
