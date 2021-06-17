@@ -1,9 +1,6 @@
 import sys
 sys.path.insert(1, '/path/to/HW3/')
 import room_descriptor as rd
-
-
-# import room_descriptor as rd
 import librosa
 import time
 
