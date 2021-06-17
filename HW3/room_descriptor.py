@@ -96,9 +96,7 @@ def compute_reverb_time(sc, parameters, fs):
 
 def reverb_time(sc, fs, T_X):
     parameters = dict_T[T_X]
-    print(parameters)
     t = compute_reverb_time(sc, parameters, fs)
-    print(T_X, " = ", t)
     return t
 
 def plot(sc, T, T_10, T_20, T_30, plot):
@@ -120,11 +118,10 @@ def TS(signal, T):
     ts = np.sum(T*sq_signal)/np.sum(sq_signal)
     return ts
 
-def T_160_ts(sc, T, signal):
+def T_160(sc, T):
     SC_16 = sc[find_nearest(T, 0.16)]
-    T_160 = -60*0.16/SC_16
-    ts = TS(signal, T)
-    return T_160*ts
+    T160 = -60*0.16/SC_16
+    return T160
 
 ###################################################
 #                                                 #
@@ -160,6 +157,8 @@ def C_80_calculation(signal, fs):
 #                                                 #
 ###################################################
 
+# https://www.engineeringtoolbox.com/octave-bands-frequency-limits-d_1602.html
+
 def octave_filter(center_freq, order, signal, fs):
     band = [center_freq/np.sqrt(2), center_freq*np.sqrt(2)]
     sos = butter(order, band, btype='bandpass', output='sos', fs=fs)
@@ -168,7 +167,7 @@ def octave_filter(center_freq, order, signal, fs):
 
 ###################################################
 #                                                 #
-#               Bass Ration (BR)                  #
+#               Bass Ratio (BR)                   #
 #                                                 #
 ###################################################
 
@@ -188,4 +187,69 @@ def BR(x, Fs):
     T_60_500 = compute_reverb_time(sc_500, (1, -60, 0), Fs)
     T_60_1000 = compute_reverb_time(sc_1000, (1, -60, 0), Fs)
 
-    return T_60_125 + T_60_250 /(T_60_500 + T_60_1000)
+    br = T_60_125 + T_60_250 /(T_60_500 + T_60_1000)
+    print('\n Bass Ratio = ',br)
+
+    pass
+
+
+#################################
+#                               #
+#     Synchronize beginning     #
+#                               #
+#################################
+
+def synchronize(signal):
+    """
+    input: signal (array)
+    output: synchronized_signal = signal but without the silence at the beginning 
+    """
+    # get the first idx when sound starts
+    idx_start = np.where(signal>0.1)[0][0]
+    print(idx_start)
+    synchronized_signal = signal[idx_start-500:]
+    return synchronized_signal
+
+
+######################################
+#                                    #
+#     Computing Room Descriptors     #
+#                                    #
+######################################
+
+def compute_room_descriptors(signal, sr, plot_curve):
+    # Schroeder Curve
+    T, sc = SC(signal, sr)
+
+    # T_10, T_20, T_30 and plot 
+    dict_T = {'T_10':(6, -15, -5), 'T_20':(3, -25, -5), 'T_30': (2, -35, -5)}
+    T_10 = reverb_time(sc, sr, 'T_10')
+    T_20 = reverb_time(sc, sr, 'T_20')
+    T_30 = reverb_time(sc, sr, 'T_30')
+
+    print('\n T_10 = ', T_10)
+    print('\n T_20 = ', T_20)
+    print('\n T_30 = ', T_30)
+
+    plot(sc, T, T_10, T_20, T_30, plot=plot_curve)
+
+    # T_160 and ts
+    T160 = T_160(sc, T)
+    ts = TS(signal, T)
+
+    print('\n T_160 = ', T160)
+    print('\n ts = ', ts)
+
+    # Early Decay Time
+    edt = EDT(sc, sr)
+    print('\n \n EDT = ', edt)
+
+    # Definition D50
+    D_50 = D_50_calculation(signal, sr)
+    print('\n \n D_50 = ', D_50)
+
+    # Clarity C80
+    C_80 = C_80_calculation(signal, sr)
+    print('\n \n C_80 = ', C_80)
+
+    pass
